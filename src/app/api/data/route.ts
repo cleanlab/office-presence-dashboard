@@ -73,7 +73,7 @@ function postProcessForkableData(apiData: ForkableData) {
   return Object.fromEntries(Object.entries(dateMap).map(([d, m])=>[d, Object.values(m)]));
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   // Protect route
   const session = await getServerSession(authOptions);
   if (!session) {

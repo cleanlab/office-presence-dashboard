@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { useSession, signOut } from "next-auth/react"; // Optional if you want session in client
+
 
 interface Person {
   name: string;
@@ -135,7 +135,7 @@ export default function DashboardClient() {
 
       {!isLoading && data && (
         <main className="grid grid-cols-1 xl:grid-cols-5 gap-6">
-          {displayedDates.map((date, i) => (
+          {displayedDates.map((date) => (
             <DayCard
               key={date}
               date={date}
