@@ -28,23 +28,29 @@ function formatDateForDisplay(dateStr: string) {
 }
 
 /**
+ * A modern Apple Calendar–style palette (slightly pastel).
+ */
+const appleColors = [
+  "#FF9F0A", // Orange
+  "#FFD60A", // Yellow
+  "#32D74B", // Green
+  "#64D2FF", // Light Blue
+  "#BF5AF2", // Purple
+];
+
+/**
  * A component to display a single day's orders in a style reminiscent of Apple iCal.
  */
 function DayCard({ date, people, index }: { date: string; people: Person[]; index: number }) {
   const { dayName, monthDay } = formatDateForDisplay(date);
-
-  // A simple palette for the left color border, cycling if you want each day differently.
-  const colorClasses = [
-    "border-blue-500",
-    "border-green-500",
-    "border-red-500",
-    "border-purple-500",
-    "border-yellow-500",
-  ];
-  const borderColor = colorClasses[index % colorClasses.length];
+  // Cycle over the color palette for each day.
+  const borderColor = appleColors[index % appleColors.length];
 
   return (
-    <div className={`relative flex flex-col p-4 bg-white border-l-8 ${borderColor} shadow-md rounded-md`}>
+    <div
+      className="relative flex flex-col p-4 bg-white shadow-md rounded-md border-l-8"
+      style={{ borderLeftColor: borderColor }}
+    >
       <div className="mb-2">
         <h2 className="text-2xl font-bold text-gray-800 leading-none">{dayName}</h2>
         <p className="text-sm font-medium text-gray-500">{monthDay}</p>
@@ -96,7 +102,7 @@ export default function Home() {
   const displayedDates = sortedDates.slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-b from-gray-100 to-gray-50 px-4 py-6 sm:px-6 lg:px-8">
       <header className="flex flex-col items-center justify-between mb-6 gap-2">
         <h1 className="font-semibold text-2xl text-gray-800">
           Cleanlab Office Presence Dashboard
@@ -113,7 +119,7 @@ export default function Home() {
       {isLoading && (
         <div className="flex items-center justify-center min-h-[40vh]">
           <div
-            className="w-12 h-12 border-4 border-t-transparent border-gray-300 rounded-full animate-spin"
+            className="w-12 h-12 border-4 border-t-transparent border-gray-400 rounded-full animate-spin"
             aria-label="Loading"
           />
         </div>
