@@ -1,5 +1,4 @@
 "use client";
-import Image from "next/image";
 import { useEffect, useState } from "react";
 
 /**
@@ -61,7 +60,7 @@ export default function Home() {
       });
   }, []);
 
-  // Convert the returned object keys to an array and sort them.
+  // Convert the returned object keys to an array, sorted.
   const sortedDates = data ? Object.keys(data).sort() : [];
 
   // Show only the first 5 days.
@@ -82,21 +81,23 @@ export default function Home() {
         </div>
       )}
 
+      {/* Show a centered spinner if loading */}
       {!data && !error && (
-        <div className="text-gray-600">Loading…</div>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div
+            className="w-10 h-10 border-4 border-t-transparent border-gray-300 rounded-full animate-spin"
+            aria-label="Loading"
+          />
+        </div>
       )}
 
       {data && (
-        <main
-          className="grid grid-cols-1 [@media(min-width:900px)]:grid-cols-5 gap-4"
-        >
+        <main className="grid grid-cols-1 [@media(min-width:900px)]:grid-cols-5 gap-4">
           {displayedDates.map((date) => (
             <DayCard key={date} date={date} people={data[date] || []} />
           ))}
         </main>
       )}
-
-      {/* Footer removed per request */}
     </div>
   );
 }
