@@ -13,11 +13,13 @@ interface ProcessedForkableResponse {
 /**
  * A small helper to format the date string (e.g., "2025-05-19") into
  * short day name (Mon) and a short month/day (May 19) similar to iCal styling.
+ * We now append "T12:00:00Z" to avoid off-by-one issues caused by time zones.
  */
 function formatDateForDisplay(dateStr: string) {
-  const dt = new Date(dateStr);
+  // Force the date string to interpret as noon UTC
+  const dt = new Date(dateStr + "T12:00:00Z");
   if (isNaN(dt.getTime())) {
-    // If the date is invalid or something unexpected, return raw
+    // If the date is invalid or unexpected, return raw
     return { dayName: dateStr, monthDay: "" };
   }
   // Example: "Mon", "May 19"
@@ -43,7 +45,8 @@ const appleColors = [
  */
 function DayCard({ date, people, index }: { date: string; people: Person[]; index: number }) {
   const { dayName, monthDay } = formatDateForDisplay(date);
-  // Cycle over the color palette for each day.
+
+  // Cycle over the color palette for each day
   const borderColor = appleColors[index % appleColors.length];
 
   return (
