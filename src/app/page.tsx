@@ -107,10 +107,13 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-100 to-gray-50 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex flex-col items-center justify-between mb-6 gap-2">
-        <h1 className="font-semibold text-2xl text-gray-800">
+      <header className="flex flex-col items-center justify-between mb-6 gap-2 bg-white rounded-md shadow p-4">
+        <h1 className="font-bold text-2xl text-gray-800">
           Cleanlab Office Presence Dashboard
         </h1>
+        <p className="text-gray-600 text-sm">
+          Check who is planning to come to the office on specific days!
+        </p>
       </header>
 
       {error && (
