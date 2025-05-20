@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Cleanlab Office Presence Dashboard
+
+This is a Next.js project that displays who plans to be in the office each day.
+It uses Google SSO for authentication (via NextAuth.js) and fetches data from the Forkable API.
+
+## Features
+
+- Google SSO restricted to a specific email domain (`cleanlab.ai`).
+- Server- and client-side route protection.
+- Forkable API integration with 30-day cached session cookie.
+- Responsive dashboard UI with modern styling.
 
 ## Getting Started
 
-First, run the development server:
+Install dependencies and run the development server:
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Create a `.env.local` file in the project root with the following variables:
+
+```bash
+# NextAuth (Google SSO)
+GOOGLE_CLIENT_ID=<your Google OAuth client ID>
+GOOGLE_CLIENT_SECRET=<your Google OAuth client secret>
+NEXTAUTH_SECRET=<random long string for signing tokens>
+ALLOWED_EMAIL_DOMAIN=cleanlab.ai  # Only allow users with @cleanlab.ai
+
+# Forkable API (Office presence data)
+FORKABLE_ADMIN_EMAIL=<Forkable admin email>
+FORKABLE_ADMIN_PASSWORD=<Forkable admin password>
+FORKABLE_CLUB_IDS=<comma-separated club IDs>  # e.g. "123,456"
+```
+
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: Credentials from Google Cloud OAuth 2.0.
+- `NEXTAUTH_SECRET`: A random string used by NextAuth to encrypt session tokens.
+- `ALLOWED_EMAIL_DOMAIN`: Email domain to restrict SSO sign-ins (e.g., `cleanlab.ai`).
+- `FORKABLE_ADMIN_EMAIL`: Forkable admin email for API login.
+- `FORKABLE_ADMIN_PASSWORD`: Forkable admin password for API login.
+- `FORKABLE_CLUB_IDS`: Comma-separated numeric IDs of the clubs you want to query.
+
+Restart the server after changing `.env.local`.
+
+## Deployment
+
+This app can be deployed on Vercel or any Node.js hosting platform. Ensure your environment variables are set in your deployment settings.
 
 ## Learn More
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- Next.js: <https://nextjs.org/docs>
+- NextAuth.js: <https://next-auth.js.org>
+- Forkable API: ask your internal Forkable team for docs
