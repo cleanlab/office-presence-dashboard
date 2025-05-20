@@ -25,7 +25,7 @@ export default function Navbar() {
               </span>
               <button
                 onClick={() => signOut({ callbackUrl: "/login" })}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition"
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition cursor-pointer"
               >
                 Logout
               </button>
@@ -33,7 +33,7 @@ export default function Navbar() {
           ) : (
             <button
               onClick={() => signIn("google", { callbackUrl: "/" })}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition cursor-pointer"
             >
               Login
             </button>
