@@ -2,6 +2,25 @@ import { NextResponse } from 'next/server';
 
 const API_URL = 'https://forkable.com/api/v2/mc/admin/deliveries';
 
+/** Minimal shape of the Forkable API data being used */
+interface ForkablePiece {
+  date?: string;
+  userId?: number;
+  user?: {
+    email?: string;
+  };
+  userFullName?: string;
+}
+interface ForkableOrder {
+  pieces?: ForkablePiece[];
+}
+interface ForkableDelivery {
+  orders?: ForkableOrder[];
+}
+interface ForkableData {
+  deliveries?: ForkableDelivery[];
+}
+
 /**
  * Set date to Monday of this week if it's a weekday, or next Monday if weekend.
  * Uses local time rather than UTC.
@@ -46,7 +65,7 @@ function getFromDate(): string {
  * Post-processes the Forkable data to produce an object mapping
  * date -> array of unique { name, email } user entries.
  */
-function postProcessForkableData(apiData: any) {
+function postProcessForkableData(apiData: ForkableData) {
   const dateMap: Record<string, Record<string, { name: string; email: string | null }>> = {};
 
   for (const delivery of apiData.deliveries || []) {
@@ -56,7 +75,7 @@ function postProcessForkableData(apiData: any) {
         if (!date) continue;
 
         // Identify the user by userId or fallback to email
-        const userId = piece.userId ?? piece?.user?.email;
+        const userId = piece.userId?.toString() ?? piece.user?.email;
         if (!userId) continue;
 
         if (!dateMap[date]) {
@@ -67,7 +86,7 @@ function postProcessForkableData(apiData: any) {
         if (!dateMap[date][userId]) {
           dateMap[date][userId] = {
             name: piece.userFullName || 'Unknown',
-            email: piece?.user?.email || null,
+            email: piece.user?.email || null,
           };
         }
       }
@@ -130,10 +149,14 @@ export async function GET() {
       );
     }
 
-    const data = await response.json();
+    const data: ForkableData = await response.json();
     const processed = postProcessForkableData(data);
     return NextResponse.json(processed);
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (err: unknown) {
+    let message = 'Unknown error';
+    if (err instanceof Error) {
+      message = err.message;
+    }
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

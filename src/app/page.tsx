@@ -2,8 +2,16 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
+// Define the shape of the data we expect from /api/data
+interface ProcessedForkableResponse {
+  [date: string]: {
+    name: string;
+    email: string | null;
+  }[];
+}
+
 export default function Home() {
-  const [data, setData] = useState<any>(null);
+  const [data, setData] = useState<ProcessedForkableResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -14,10 +22,10 @@ export default function Home() {
         }
         return res.json();
       })
-      .then((json) => {
+      .then((json: ProcessedForkableResponse) => {
         setData(json);
       })
-      .catch((err) => {
+      .catch((err: Error) => {
         setError(err.message);
       });
   }, []);
