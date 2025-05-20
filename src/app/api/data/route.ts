@@ -2,12 +2,15 @@ import { NextResponse } from 'next/server';
 
 const API_URL = 'https://forkable.com/api/v2/mc/admin/deliveries';
 
-function getFromDate() {
-  // Returns YYYY-MM-DD based on the logic:
-  // - If it's a weekday, Monday of that week
-  // - If weekend, next Monday
-  const now = new Date();
-  const dayOfWeek = now.getDay(); // Sunday=0, Monday=1, ... Saturday=6
+/**
+ * Set date to Monday of this week if it's a weekday, or next Monday if weekend.
+ * Uses local time rather than UTC.
+ */
+function getLocalMondayOrNext(now: Date): Date {
+  // Zero out hours to local midnight
+  now.setHours(0, 0, 0, 0);
+
+  const dayOfWeek = now.getDay(); // Sunday=0, Monday=1, ..., Saturday=6
 
   if (dayOfWeek === 6) {
     // Saturday => upcoming Monday is 2 days ahead
@@ -16,18 +19,33 @@ function getFromDate() {
     // Sunday => upcoming Monday is 1 day ahead
     now.setDate(now.getDate() + 1);
   } else {
-    // It's a weekday => set to Monday of this week
+    // Weekday => shift back to Monday
     const offset = dayOfWeek - 1;
     now.setDate(now.getDate() - offset);
   }
 
-  // Format as YYYY-MM-DD
-  return now.toISOString().split('T')[0];
+  return now;
 }
 
-// Helper to post-process the Forkable data:
-//   We want an object of dates -> array of objects {name, email}, unique by user.
-//   People might have multiple orders, but their name should appear only once per date.
+/** Convert a local Date to YYYY-MM-DD. */
+function formatLocalDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+/** Returns YYYY-MM-DD (local) for Monday of the current week, or next Monday if weekend. */
+function getFromDate(): string {
+  const now = new Date();
+  const monday = getLocalMondayOrNext(now);
+  return formatLocalDate(monday);
+}
+
+/**
+ * Post-processes the Forkable data to produce an object mapping
+ * date -> array of unique { name, email } user entries.
+ */
 function postProcessForkableData(apiData: any) {
   const dateMap: Record<string, Record<string, { name: string; email: string | null }>> = {};
 
@@ -37,8 +55,9 @@ function postProcessForkableData(apiData: any) {
         const date = piece.date;
         if (!date) continue;
 
+        // Identify the user by userId or fallback to email
         const userId = piece.userId ?? piece?.user?.email;
-        if (!userId) continue; // skip if we can't identify a user
+        if (!userId) continue;
 
         if (!dateMap[date]) {
           dateMap[date] = {};
@@ -55,22 +74,20 @@ function postProcessForkableData(apiData: any) {
     }
   }
 
-  // Convert dateMap from nested objects to { date: [{ name, email }, ...] }
+  // Convert to { date: [ {name, email}, ... ] }
   const result: Record<string, { name: string; email: string | null }[]> = {};
   for (const date of Object.keys(dateMap)) {
-    const entries = Object.values(dateMap[date]);
-    result[date] = entries;
+    result[date] = Object.values(dateMap[date]);
   }
 
   return result;
 }
 
 export async function GET() {
-  // Get the cookie and club IDs from environment variables
+  // Environment variables
   const forkableCookie = process.env.FORKABLE_ADMIN_COOKIE;
   const forkableClubIds = process.env.FORKABLE_CLUB_IDS;
 
-  // Validate environment variables
   if (!forkableCookie) {
     return NextResponse.json(
       { error: 'FORKABLE_ADMIN_COOKIE env var is not set' },
@@ -84,17 +101,16 @@ export async function GET() {
     );
   }
 
-  // Parse the comma-separated club IDs into an array of integers
+  // Parse the comma-separated club IDs into an array
   const clubIds = forkableClubIds
     .split(',')
     .map((id) => parseInt(id.trim(), 10))
     .filter((id) => !isNaN(id));
 
-  // Compute the fromDate
+  // Use our local time-based calculation
   const fromDate = getFromDate();
 
   try {
-    // Send POST request to Forkable URL
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
@@ -109,15 +125,12 @@ export async function GET() {
 
     if (!response.ok) {
       return NextResponse.json(
-        {
-          error: `Request failed with status ${response.status}`,
-        },
+        { error: `Request failed with status ${response.status}` },
         { status: response.status }
       );
     }
 
     const data = await response.json();
-    // Post-process the data to get date -> array of names/emails
     const processed = postProcessForkableData(data);
     return NextResponse.json(processed);
   } catch (error: any) {
