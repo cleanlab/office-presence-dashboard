@@ -12,7 +12,18 @@ export default function Navbar() {
       <div className="px-4 sm:px-6 lg:px-8 flex h-16 items-center justify-between">
         <Link href="/">
           <span className="text-2xl font-bold text-gray-900 cursor-pointer">
-            Cleanlab Office Presence Dashboard
+            <span className="office-presence-text">Cleanlab Office Presence Dashboard</span>
+            <span className="cleanlab-text hidden">Cleanlab</span>
+            <style jsx>{`
+              @media (max-width: 900px) {
+                .office-presence-text {
+                  display: none;
+                }
+                .cleanlab-text {
+                  display: inline;
+                }
+              }
+            `}</style>
           </span>
         </Link>
         <div>
