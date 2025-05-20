@@ -25,6 +25,46 @@ function getFromDate() {
   return now.toISOString().split('T')[0];
 }
 
+// Helper to post-process the Forkable data:
+//   We want an object of dates -> array of objects {name, email}, unique by user.
+//   People might have multiple orders, but their name should appear only once per date.
+function postProcessForkableData(apiData: any) {
+  const dateMap: Record<string, Record<string, { name: string; email: string | null }>> = {};
+
+  for (const delivery of apiData.deliveries || []) {
+    for (const order of delivery.orders || []) {
+      for (const piece of order.pieces || []) {
+        const date = piece.date;
+        if (!date) continue;
+
+        const userId = piece.userId ?? piece?.user?.email;
+        if (!userId) continue; // skip if we can't identify a user
+
+        if (!dateMap[date]) {
+          dateMap[date] = {};
+        }
+
+        // Only add if we haven't seen this user for that date
+        if (!dateMap[date][userId]) {
+          dateMap[date][userId] = {
+            name: piece.userFullName || 'Unknown',
+            email: piece?.user?.email || null,
+          };
+        }
+      }
+    }
+  }
+
+  // Convert dateMap from nested objects to { date: [{ name, email }, ...] }
+  const result: Record<string, { name: string; email: string | null }[]> = {};
+  for (const date of Object.keys(dateMap)) {
+    const entries = Object.values(dateMap[date]);
+    result[date] = entries;
+  }
+
+  return result;
+}
+
 export async function GET() {
   // Get the cookie and club IDs from environment variables
   const forkableCookie = process.env.FORKABLE_ADMIN_COOKIE;
@@ -34,13 +74,13 @@ export async function GET() {
   if (!forkableCookie) {
     return NextResponse.json(
       { error: 'FORKABLE_ADMIN_COOKIE env var is not set' },
-      { status: 500 },
+      { status: 500 }
     );
   }
   if (!forkableClubIds) {
     return NextResponse.json(
       { error: 'FORKABLE_CLUB_IDS env var is not set' },
-      { status: 500 },
+      { status: 500 }
     );
   }
 
@@ -50,7 +90,7 @@ export async function GET() {
     .map((id) => parseInt(id.trim(), 10))
     .filter((id) => !isNaN(id));
 
-  // Use helper to compute the fromDate
+  // Compute the fromDate
   const fromDate = getFromDate();
 
   try {
@@ -72,12 +112,14 @@ export async function GET() {
         {
           error: `Request failed with status ${response.status}`,
         },
-        { status: response.status },
+        { status: response.status }
       );
     }
 
     const data = await response.json();
-    return NextResponse.json(data);
+    // Post-process the data to get date -> array of names/emails
+    const processed = postProcessForkableData(data);
+    return NextResponse.json(processed);
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
