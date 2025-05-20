@@ -50,10 +50,18 @@ function formatDateForDisplay(dateStr: string) {
   return { dayName, monthDay: `${monthStr} ${dayNum}` };
 }
 
+interface DayCardProps {
+  date: string;
+  people: Person[];
+  index: number;
+  hoveredName: string | null;
+  setHoveredName: (name: string | null) => void;
+}
+
 /**
  * A component to display a single day's orders, reminiscent of Apple iCal.
  */
-function DayCard({ date, people }: { date: string; people: Person[]; index: number }) {
+function DayCard({ date, people, index, hoveredName, setHoveredName }: DayCardProps) {
   const { dayName, monthDay } = formatDateForDisplay(date);
 
   // Use a single gray-400 color for the border
@@ -75,11 +83,19 @@ function DayCard({ date, people }: { date: string; people: Person[]; index: numb
           <ul className="flex flex-wrap gap-2 mt-1">
             {people.map((p) => {
               const { backgroundColor, color } = nameToHSL(p.name);
+              // If someone is hovered, and this name isn't the hovered one, lighten/gray it
+              const isDimmed = hoveredName && hoveredName !== p.name;
               return (
                 <li
                   key={p.email || p.name}
-                  className="px-3 py-1 rounded-full text-sm"
-                  style={{ backgroundColor, color }}
+                  className="px-3 py-1 rounded-full text-sm transition-colors duration-200"
+                  style={
+                    isDimmed
+                      ? { backgroundColor: "#E5E7EB", color: "#9CA3AF" }
+                      : { backgroundColor, color }
+                  }
+                  onMouseEnter={() => setHoveredName(p.name)}
+                  onMouseLeave={() => setHoveredName(null)}
                 >
                   {p.name}
                 </li>
@@ -96,6 +112,7 @@ export default function Home() {
   const [data, setData] = useState<ProcessedForkableResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [hoveredName, setHoveredName] = useState<string | null>(null);
 
   useEffect(() => {
     setIsLoading(true);
@@ -151,9 +168,14 @@ export default function Home() {
       {!isLoading && data && (
         <main className="grid grid-cols-1 [@media(min-width:1200px)]:grid-cols-5 gap-6">
           {displayedDates.map((date, i) => (
-            // We'll pass the day index through the DayCard only if needed,
-            // but for now we can omit it since we use a single color.
-            <DayCard key={date} date={date} people={data[date] || []} index={i} />
+            <DayCard
+              key={date}
+              date={date}
+              people={data[date] || []}
+              index={i}
+              hoveredName={hoveredName}
+              setHoveredName={setHoveredName}
+            />
           ))}
         </main>
       )}
