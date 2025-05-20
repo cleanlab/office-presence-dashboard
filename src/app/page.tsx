@@ -11,6 +11,27 @@ interface ProcessedForkableResponse {
 }
 
 /**
+ * Generate a pastel HSL color and matching text color from the given name.
+ * This ensures each name always has the same color, and the background
+ * remains subtly colored for readability.
+ */
+function nameToHSL(name: string) {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    // Simple string hash
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  // Convert hash to a hue value between 0–359
+  const hue = Math.abs(hash) % 360;
+
+  // Return a soft pastel background with a somewhat darker text
+  return {
+    backgroundColor: `hsl(${hue}, 70%, 90%)`,
+    color: `hsl(${hue}, 30%, 30%)`,
+  };
+}
+
+/**
  * A small helper to format the date string (e.g., "2025-05-19") into
  * short day name (Mon) and a short month/day (May 19) similar to iCal styling.
  * We append "T12:00:00Z" to avoid off-by-one issues caused by time zones.
@@ -30,25 +51,13 @@ function formatDateForDisplay(dateStr: string) {
 }
 
 /**
- * A mid-tone Apple Calendar–like color palette for day borders.
- * Halfway between the bright and pastel variants.
+ * A component to display a single day's orders, reminiscent of Apple iCal.
  */
-const appleMidTones = [
-  "#FFC68A", // Light orange
-  "#FFF186", // Light yellow
-  "#76F6AA", // Light green
-  "#92EEFF", // Light blue
-  "#DBB1FA", // Light purple
-];
-
-/**
- * A component to display a single day's orders in a style reminiscent of Apple iCal.
- */
-function DayCard({ date, people, index }: { date: string; people: Person[]; index: number }) {
+function DayCard({ date, people }: { date: string; people: Person[]; index: number }) {
   const { dayName, monthDay } = formatDateForDisplay(date);
 
-  // Cycle over the mid-tone palette for each day
-  const borderColor = appleMidTones[index % appleMidTones.length];
+  // Use a single gray-400 color for the border
+  const borderColor = "#9CA3AF"; // Tailwind's gray-400
 
   return (
     <div
@@ -63,12 +72,19 @@ function DayCard({ date, people, index }: { date: string; people: Person[]; inde
         {people.length === 0 ? (
           <p className="text-gray-600 italic mt-2">No one ordered.</p>
         ) : (
-          <ul className="space-y-1 mt-1">
-            {people.map((p) => (
-              <li key={p.email || p.name} className="text-gray-800">
-                • {p.name}
-              </li>
-            ))}
+          <ul className="flex flex-wrap gap-2 mt-1">
+            {people.map((p) => {
+              const { backgroundColor, color } = nameToHSL(p.name);
+              return (
+                <li
+                  key={p.email || p.name}
+                  className="px-3 py-1 rounded-full text-sm"
+                  style={{ backgroundColor, color }}
+                >
+                  {p.name}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
@@ -135,6 +151,8 @@ export default function Home() {
       {!isLoading && data && (
         <main className="grid grid-cols-1 [@media(min-width:900px)]:grid-cols-5 gap-6">
           {displayedDates.map((date, i) => (
+            // We'll pass the day index through the DayCard only if needed,
+            // but for now we can omit it since we use a single color.
             <DayCard key={date} date={date} people={data[date] || []} index={i} />
           ))}
         </main>
