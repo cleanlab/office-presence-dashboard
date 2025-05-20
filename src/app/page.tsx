@@ -64,25 +64,16 @@ export default function Home() {
   // Convert the returned object keys to an array and sort them.
   const sortedDates = data ? Object.keys(data).sort() : [];
 
-  // Show only first 5 days, if you prefer.
+  // Show only the first 5 days.
   const displayedDates = sortedDates.slice(0, 5);
 
   return (
     <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
-      <header className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-2">
-        <div className="flex items-center gap-2">
-          <Image
-            className="dark:invert"
-            src="/next.svg"
-            alt="Next.js logo"
-            width={100}
-            height={25}
-            priority
-          />
-          <h1 className="font-semibold text-xl text-gray-800">
-            Weekly Meal Orders
-          </h1>
-        </div>
+      <header className="flex flex-col items-center justify-between mb-6 gap-2">
+        {/* Title only, no logo */}
+        <h1 className="font-semibold text-xl text-gray-800">
+          Cleanlab Office Presence Dashboard
+        </h1>
       </header>
 
       {error && (
@@ -96,16 +87,16 @@ export default function Home() {
       )}
 
       {data && (
-        <main className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+        <main
+          className="grid grid-cols-1 [@media(min-width:900px)]:grid-cols-5 gap-4"
+        >
           {displayedDates.map((date) => (
             <DayCard key={date} date={date} people={data[date] || []} />
           ))}
         </main>
       )}
 
-      <footer className="mt-8 text-sm text-center text-gray-500">
-        Powered by Next.js + Tailwind
-      </footer>
+      {/* Footer removed per request */}
     </div>
   );
 }
