@@ -1,25 +1,60 @@
 import { NextResponse } from 'next/server';
 
-export async function GET() {
-  // Use the DATA_URL environment variable
-  const dataUrl = process.env.DATA_URL;
+const API_URL = 'https://forkable.com/api/v2/mc/admin/deliveries';
 
-  if (!dataUrl) {
+export async function GET() {
+  // Get the cookie and club IDs from environment variables
+  const forkableCookie = process.env.FORKABLE_ADMIN_COOKIE;
+  const forkableClubIds = process.env.FORKABLE_CLUB_IDS;
+
+  // Validate environment variables
+  if (!forkableCookie) {
     return NextResponse.json(
-      { error: 'DATA_URL env var is not set' },
-      { status: 500 }
+      { error: 'FORKABLE_ADMIN_COOKIE env var is not set' },
+      { status: 500 },
+    );
+  }
+  if (!forkableClubIds) {
+    return NextResponse.json(
+      { error: 'FORKABLE_CLUB_IDS env var is not set' },
+      { status: 500 },
     );
   }
 
-  try {
-    // Fetch the data from the external URL (with secret or query param if necessary)
-    const response = await fetch(dataUrl);
-    const data = await response.json();
+  // Parse the comma-separated club IDs into an array of integers
+  const clubIds = forkableClubIds
+    .split(',')
+    .map((id) => parseInt(id.trim(), 10))
+    .filter((id) => !isNaN(id));
 
-    // Return the fetched data as JSON
+  const fromDate = '2025-05-19'; // Hard-coded at present
+
+  try {
+    // Send POST request to Forkable URL
+    const response = await fetch(API_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Cookie: forkableCookie,
+      },
+      body: JSON.stringify({
+        clubIds,
+        from: fromDate,
+      }),
+    });
+
+    if (!response.ok) {
+      return NextResponse.json(
+        {
+          error: `Request failed with status ${response.status}`,
+        },
+        { status: response.status },
+      );
+    }
+
+    const data = await response.json();
     return NextResponse.json(data);
   } catch (error: any) {
-    // In case of any errors, respond with a JSON error message
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
