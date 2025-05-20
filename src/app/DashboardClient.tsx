@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-
+import { sha256 } from "js-sha256";
 
 interface Person {
   name: string;
@@ -14,11 +13,13 @@ interface ProcessedForkableResponse {
 }
 
 function nameToHSL(name: string) {
-  let hash = 0;
-  for (let i = 0; i < name.length; i++) {
-    hash = name.charCodeAt(i) + ((hash << 5) - hash);
-  }
-  const hue = Math.abs(hash) % 360;
+  // Use js-sha256 to generate a robust hash
+  const hashedString = sha256(name);
+  // Convert some portion of the hash to a number
+  const hashedNumber = parseInt(hashedString.slice(0, 8), 16);
+  // Map to 0–359 range to pick a unique Hue
+  const hue = hashedNumber % 360;
+
   return {
     backgroundColor: `hsl(${hue}, 70%, 90%)`,
     color: `hsl(${hue}, 30%, 30%)`,
@@ -117,7 +118,6 @@ export default function DashboardClient() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-100 to-gray-50 px-4 py-6 sm:px-6 lg:px-8">
-
       {error && (
         <div className="bg-red-100 text-red-700 p-3 rounded mb-4 mx-auto max-w-xl">
           {error}
