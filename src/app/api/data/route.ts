@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { unstable_cache } from 'next/cache';
 
 const GRAPHQL_API_URL = 'https://forkable.com/api/v2/graphql';
 const DELIVERY_API_URL = 'https://forkable.com/api/v2/mc/admin/deliveries';
@@ -11,7 +12,7 @@ interface ForkablePiece {
     email?: string;
   };
   userFullName?: string;
-  isConfirmed?: boolean; // <-- We added this property
+  isConfirmed?: boolean;
 }
 
 interface ForkableOrder {
@@ -26,23 +27,13 @@ interface ForkableData {
   deliveries?: ForkableDelivery[];
 }
 
-// Simple in-memory cache. If the server restarts or scales across multiple instances, this may not persist.
-let cachedForkableCookie: string | null = null;
-let cachedCookieExpiration: number | null = null;
-
-// 30 days in milliseconds
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+const THIRTY_DAYS_SECONDS = 30 * 24 * 60 * 60;
 
 /**
- * Helper to get the _easyorder_session cookie by logging in to Forkable.
- * Caches the cookie in memory for 30 days.
+ * Uses Next.js unstable_cache to cache the Forkable cookie for 30 days.
+ * If the cache is expired, logs in again to retrieve a fresh cookie.
  */
-async function getForkableCookie(): Promise<string> {
-  // If we already have a cached cookie that hasn't expired, return it.
-  if (cachedForkableCookie && cachedCookieExpiration && Date.now() < cachedCookieExpiration) {
-    return cachedForkableCookie;
-  }
-
+const getForkableCookie = unstable_cache(async (): Promise<string> => {
   const email = process.env.FORKABLE_ADMIN_EMAIL;
   const password = process.env.FORKABLE_ADMIN_PASSWORD;
 
@@ -50,9 +41,10 @@ async function getForkableCookie(): Promise<string> {
     throw new Error('FORKABLE_ADMIN_EMAIL and FORKABLE_ADMIN_PASSWORD must be set');
   }
 
-  // Perform the login request to get the set-cookie header.
+  // Perform the login request to get the set-cookie header
   const loginPayload = {
-    query: "mutation ($input: CreateSessionInput!) { createSession (input: $input) { errorAttributes user { id email } } }",
+    query:
+      'mutation ($input: CreateSessionInput!) { createSession (input: $input) { errorAttributes user { id email } } }',
     variables: {
       input: {
         email,
@@ -79,16 +71,15 @@ async function getForkableCookie(): Promise<string> {
     throw new Error('Forkable login did not return a set-cookie header');
   }
 
-  // We'll parse out the `_easyorder_session=...` portion from the set-cookie header:
+  // Parse out the `_easyorder_session=...` portion from the set-cookie header:
   const match = setCookieHeader.match(/_easyorder_session=[^;]+/);
   if (!match) {
     throw new Error('Could not find _easyorder_session in set-cookie header');
   }
-  cachedForkableCookie = match[0];
-  cachedCookieExpiration = Date.now() + THIRTY_DAYS_MS;
 
-  return cachedForkableCookie;
-}
+  console.log('New cookie fetched:', match[0]);
+  return match[0];
+}, ['forkableCookie'], { revalidate: THIRTY_DAYS_SECONDS });
 
 /**
  * Set date to Monday of this week if it's a weekday, or next Monday if weekend.
@@ -99,7 +90,6 @@ function getLocalMondayOrNext(now: Date): Date {
   now.setHours(0, 0, 0, 0);
 
   const dayOfWeek = now.getDay(); // Sunday=0, Monday=1, ..., Saturday=6
-
   if (dayOfWeek === 6) {
     // Saturday => upcoming Monday is 2 days ahead
     now.setDate(now.getDate() + 2);
@@ -133,7 +123,6 @@ function getFromDate(): string {
 /**
  * Post-processes the Forkable data to produce an object mapping
  * date -> array of unique { name, email } user entries.
- *
  * Only include pieces that have isConfirmed === true.
  */
 function postProcessForkableData(apiData: ForkableData) {
@@ -197,7 +186,7 @@ export async function GET() {
   const fromDate = getFromDate();
 
   try {
-    // Get the cookie, possibly from cache, or fresh
+    // Get the cookie from the Next.js cache (or fetch a new one if expired)
     const forkableCookie = await getForkableCookie();
 
     const response = await fetch(DELIVERY_API_URL, {
