@@ -2,7 +2,7 @@
 import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]/route';
+import { authOptions } from '../../../lib/auth';
 
 const GRAPHQL_API_URL = 'https://forkable.com/api/v2/graphql';
 const DELIVERY_API_URL = 'https://forkable.com/api/v2/mc/admin/deliveries';
