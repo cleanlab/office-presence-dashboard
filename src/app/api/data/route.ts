@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 
-const API_URL = 'https://forkable.com/api/v2/mc/admin/deliveries';
+const GRAPHQL_API_URL = 'https://forkable.com/api/v2/graphql';
+const DELIVERY_API_URL = 'https://forkable.com/api/v2/mc/admin/deliveries';
 
 /** Minimal shape of the Forkable API data being used */
 interface ForkablePiece {
@@ -23,6 +24,70 @@ interface ForkableDelivery {
 
 interface ForkableData {
   deliveries?: ForkableDelivery[];
+}
+
+// Simple in-memory cache. If the server restarts or scales across multiple instances, this may not persist.
+let cachedForkableCookie: string | null = null;
+let cachedCookieExpiration: number | null = null;
+
+// 30 days in milliseconds
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+/**
+ * Helper to get the _easyorder_session cookie by logging in to Forkable.
+ * Caches the cookie in memory for 30 days.
+ */
+async function getForkableCookie(): Promise<string> {
+  // If we already have a cached cookie that hasn't expired, return it.
+  if (cachedForkableCookie && cachedCookieExpiration && Date.now() < cachedCookieExpiration) {
+    return cachedForkableCookie;
+  }
+
+  const email = process.env.FORKABLE_ADMIN_EMAIL;
+  const password = process.env.FORKABLE_ADMIN_PASSWORD;
+
+  if (!email || !password) {
+    throw new Error('FORKABLE_ADMIN_EMAIL and FORKABLE_ADMIN_PASSWORD must be set');
+  }
+
+  // Perform the login request to get the set-cookie header.
+  const loginPayload = {
+    query: "mutation ($input: CreateSessionInput!) { createSession (input: $input) { errorAttributes user { id email } } }",
+    variables: {
+      input: {
+        email,
+        password,
+      },
+    },
+  };
+
+  const response = await fetch(GRAPHQL_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(loginPayload),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Forkable login failed with status ${response.status}`);
+  }
+
+  // We need the 'set-cookie' header
+  const setCookieHeader = response.headers.get('set-cookie');
+  if (!setCookieHeader) {
+    throw new Error('Forkable login did not return a set-cookie header');
+  }
+
+  // We'll parse out the `_easyorder_session=...` portion from the set-cookie header:
+  const match = setCookieHeader.match(/_easyorder_session=[^;]+/);
+  if (!match) {
+    throw new Error('Could not find _easyorder_session in set-cookie header');
+  }
+  cachedForkableCookie = match[0];
+  cachedCookieExpiration = Date.now() + THIRTY_DAYS_MS;
+
+  return cachedForkableCookie;
 }
 
 /**
@@ -113,15 +178,8 @@ function postProcessForkableData(apiData: ForkableData) {
 
 export async function GET() {
   // Environment variables
-  const forkableCookie = process.env.FORKABLE_ADMIN_COOKIE;
   const forkableClubIds = process.env.FORKABLE_CLUB_IDS;
 
-  if (!forkableCookie) {
-    return NextResponse.json(
-      { error: 'FORKABLE_ADMIN_COOKIE env var is not set' },
-      { status: 500 }
-    );
-  }
   if (!forkableClubIds) {
     return NextResponse.json(
       { error: 'FORKABLE_CLUB_IDS env var is not set' },
@@ -139,7 +197,10 @@ export async function GET() {
   const fromDate = getFromDate();
 
   try {
-    const response = await fetch(API_URL, {
+    // Get the cookie, possibly from cache, or fresh
+    const forkableCookie = await getForkableCookie();
+
+    const response = await fetch(DELIVERY_API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
