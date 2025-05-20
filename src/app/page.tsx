@@ -2,12 +2,43 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 
-// Define the shape of the data we expect from /api/data
+/**
+ * The shape of the data from /api/data
+ * Example:
+ * {
+ *   "2025-05-19": [{ name: "Alice", email: "alice@example.com" }, ...],
+ *   "2025-05-20": [...],
+ *   ...
+ * }
+ */
+interface Person {
+  name: string;
+  email: string | null;
+}
 interface ProcessedForkableResponse {
-  [date: string]: {
-    name: string;
-    email: string | null;
-  }[];
+  [date: string]: Person[];
+}
+
+/**
+ * A component to display a single day's orders.
+ */
+function DayCard({ date, people }: { date: string; people: Person[] }) {
+  return (
+    <div className="flex flex-col p-4 border rounded-md shadow-sm bg-white min-w-0">
+      <h2 className="font-semibold text-lg mb-2">{date}</h2>
+      {people.length === 0 ? (
+        <p className="text-gray-600 italic">No one ordered.</p>
+      ) : (
+        <ul className="space-y-1">
+          {people.map((p) => (
+            <li key={p.email || p.name} className="text-gray-800">
+              {p.name}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 export default function Home() {
@@ -30,88 +61,50 @@ export default function Home() {
       });
   }, []);
 
+  // Convert the returned object keys to an array and sort them.
+  const sortedDates = data ? Object.keys(data).sort() : [];
+
+  // Show only first 5 days, if you prefer.
+  const displayedDates = sortedDates.slice(0, 5);
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">Save and see your changes instantly.</li>
-        </ol>
-
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+    <div className="min-h-screen bg-gray-50 px-4 py-6 sm:px-6 lg:px-8">
+      <header className="flex flex-col sm:flex-row items-center justify-between mb-6 gap-2">
+        <div className="flex items-center gap-2">
+          <Image
+            className="dark:invert"
+            src="/next.svg"
+            alt="Next.js logo"
+            width={100}
+            height={25}
+            priority
+          />
+          <h1 className="font-semibold text-xl text-gray-800">
+            Weekly Meal Orders
+          </h1>
         </div>
+      </header>
 
-        {/* Display data or error here */}
-        {error && <p>Error: {error}</p>}
-        <pre className="text-left bg-gray-100 p-2 rounded w-full max-w-2xl overflow-auto text-sm">
-          {JSON.stringify(data, null, 2)}
-        </pre>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image aria-hidden src="/file.svg" alt="File icon" width={16} height={16} />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image aria-hidden src="/window.svg" alt="Window icon" width={16} height={16} />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image aria-hidden src="/globe.svg" alt="Globe icon" width={16} height={16} />
-          Go to nextjs.org →
-        </a>
+      {error && (
+        <div className="bg-red-100 text-red-700 p-3 rounded mb-4">
+          Error: {error}
+        </div>
+      )}
+
+      {!data && !error && (
+        <div className="text-gray-600">Loading…</div>
+      )}
+
+      {data && (
+        <main className="grid grid-cols-1 sm:grid-cols-5 gap-4">
+          {displayedDates.map((date) => (
+            <DayCard key={date} date={date} people={data[date] || []} />
+          ))}
+        </main>
+      )}
+
+      <footer className="mt-8 text-sm text-center text-gray-500">
+        Powered by Next.js + Tailwind
       </footer>
     </div>
   );
