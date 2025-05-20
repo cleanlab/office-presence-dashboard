@@ -1,221 +1,103 @@
+// src/app/api/data/route.ts
 import { NextResponse } from 'next/server';
 import { unstable_cache } from 'next/cache';
+import { getServerSession } from 'next-auth/next';
+import { authOptions } from '../auth/[...nextauth]/route';
 
 const GRAPHQL_API_URL = 'https://forkable.com/api/v2/graphql';
 const DELIVERY_API_URL = 'https://forkable.com/api/v2/mc/admin/deliveries';
+
+const THIRTY_DAYS_SECONDS = 30 * 24 * 60 * 60;
 
 /** Minimal shape of the Forkable API data being used */
 interface ForkablePiece {
   date?: string;
   userId?: number;
-  user?: {
-    email?: string;
-  };
+  user?: { email?: string };
   userFullName?: string;
   isConfirmed?: boolean;
 }
-
-interface ForkableOrder {
-  pieces?: ForkablePiece[];
-}
-
-interface ForkableDelivery {
-  orders?: ForkableOrder[];
-}
-
-interface ForkableData {
-  deliveries?: ForkableDelivery[];
-}
-
-const THIRTY_DAYS_SECONDS = 30 * 24 * 60 * 60;
+interface ForkableOrder { pieces?: ForkablePiece[]; }
+interface ForkableDelivery { orders?: ForkableOrder[]; }
+interface ForkableData { deliveries?: ForkableDelivery[]; }
 
 /**
  * Uses Next.js unstable_cache to cache the Forkable cookie for 30 days.
- * If the cache is expired, logs in again to retrieve a fresh cookie.
+ * If expired, logs in again to retrieve a fresh one.
  */
 const getForkableCookie = unstable_cache(async (): Promise<string> => {
   const email = process.env.FORKABLE_ADMIN_EMAIL;
   const password = process.env.FORKABLE_ADMIN_PASSWORD;
+  if (!email || !password) throw new Error('FORKABLE_ADMIN_EMAIL and FORKABLE_ADMIN_PASSWORD must be set');
 
-  if (!email || !password) {
-    throw new Error('FORKABLE_ADMIN_EMAIL and FORKABLE_ADMIN_PASSWORD must be set');
-  }
-
-  // Perform the login request to get the set-cookie header
   const loginPayload = {
-    query:
-      'mutation ($input: CreateSessionInput!) { createSession (input: $input) { errorAttributes user { id email } } }',
-    variables: {
-      input: {
-        email,
-        password,
-      },
-    },
+    query: 'mutation ($input: CreateSessionInput!) { createSession (input: $input) { errorAttributes user { id email } } }',
+    variables: { input: { email, password } },
   };
-
-  const response = await fetch(GRAPHQL_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
+  const res = await fetch(GRAPHQL_API_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(loginPayload),
   });
+  if (!res.ok) throw new Error(`Forkable login failed: ${res.status}`);
 
-  if (!response.ok) {
-    throw new Error(`Forkable login failed with status ${response.status}`);
-  }
-
-  // We need the 'set-cookie' header
-  const setCookieHeader = response.headers.get('set-cookie');
-  if (!setCookieHeader) {
-    throw new Error('Forkable login did not return a set-cookie header');
-  }
-
-  // Parse out the `_easyorder_session=...` portion from the set-cookie header:
-  const match = setCookieHeader.match(/_easyorder_session=[^;]+/);
-  if (!match) {
-    throw new Error('Could not find _easyorder_session in set-cookie header');
-  }
-
-  console.log('New cookie fetched:', match[0]);
+  const setCookie = res.headers.get('set-cookie');
+  if (!setCookie) throw new Error('Missing set-cookie header');
+  const match = setCookie.match(/_easyorder_session=[^;]+/);
+  if (!match) throw new Error('Could not parse session cookie');
   return match[0];
 }, ['forkableCookie'], { revalidate: THIRTY_DAYS_SECONDS });
 
-/**
- * Set date to Monday of this week if it's a weekday, or next Monday if weekend.
- * Uses local time rather than UTC.
- */
-function getLocalMondayOrNext(now: Date): Date {
-  // Zero out hours to local midnight
-  now.setHours(0, 0, 0, 0);
-
-  const dayOfWeek = now.getDay(); // Sunday=0, Monday=1, ..., Saturday=6
-  if (dayOfWeek === 6) {
-    // Saturday => upcoming Monday is 2 days ahead
-    now.setDate(now.getDate() + 2);
-  } else if (dayOfWeek === 0) {
-    // Sunday => upcoming Monday is 1 day ahead
-    now.setDate(now.getDate() + 1);
-  } else {
-    // Weekday => shift back to Monday
-    const offset = dayOfWeek - 1;
-    now.setDate(now.getDate() - offset);
-  }
-
+/** Date helpers omitted for brevity… */
+function getLocalMondayOrNext(now: Date) {
+  now.setHours(0,0,0,0);
+  const d = now.getDay();
+  if (d === 6) now.setDate(now.getDate()+2);
+  else if (d === 0) now.setDate(now.getDate()+1);
+  else now.setDate(now.getDate() - (d-1));
   return now;
 }
-
-/** Convert a local Date to YYYY-MM-DD. */
 function formatLocalDate(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
+  const y = date.getFullYear(), m = String(date.getMonth()+1).padStart(2,'0'), d = String(date.getDate()).padStart(2,'0');
+  return `${y}-${m}-${d}`;
 }
-
-/** Returns YYYY-MM-DD (local) for Monday of the current week, or next Monday if weekend. */
-function getFromDate(): string {
-  const now = new Date();
-  const monday = getLocalMondayOrNext(now);
-  return formatLocalDate(monday);
-}
-
-/**
- * Post-processes the Forkable data to produce an object mapping
- * date -> array of unique { name, email } user entries.
- * Only include pieces that have isConfirmed === true.
- */
+function getFromDate(): string { return formatLocalDate(getLocalMondayOrNext(new Date())); }
 function postProcessForkableData(apiData: ForkableData) {
-  const dateMap: Record<string, Record<string, { name: string; email: string | null }>> = {};
-
-  for (const delivery of apiData.deliveries || []) {
-    for (const order of delivery.orders || []) {
-      for (const piece of order.pieces || []) {
-        // Only include confirmed orders:
-        if (!piece.isConfirmed) continue;
-
-        const date = piece.date;
-        if (!date) continue;
-
-        // Identify the user by userId or fallback to email
-        const userId = piece.userId?.toString() ?? piece.user?.email;
-        if (!userId) continue;
-
-        if (!dateMap[date]) {
-          dateMap[date] = {};
-        }
-
-        // Only add if we haven't seen this user for that date
-        if (!dateMap[date][userId]) {
-          dateMap[date][userId] = {
-            name: piece.userFullName || 'Unknown',
-            email: piece.user?.email || null,
-          };
-        }
-      }
-    }
+  const dateMap: Record<string, Record<string,{name:string,email:string|null}>>={};
+  for (const del of apiData.deliveries||[]) for (const ord of del.orders||[]) for (const p of ord.pieces||[]) {
+    if (!p.isConfirmed || !p.date) continue;
+    const userId = p.userId?.toString() ?? p.user?.email;
+    if (!userId) continue;
+    dateMap[p.date] ??= {};
+    dateMap[p.date][userId] ??= { name: p.userFullName||'Unknown', email: p.user?.email||null };
   }
-
-  // Convert to { date: [ {name, email}, ... ] }
-  const result: Record<string, { name: string; email: string | null }[]> = {};
-  for (const date of Object.keys(dateMap)) {
-    result[date] = Object.values(dateMap[date]);
-  }
-
-  return result;
+  return Object.fromEntries(Object.entries(dateMap).map(([d, m])=>[d, Object.values(m)]));
 }
 
-export async function GET() {
-  // Environment variables
-  const forkableClubIds = process.env.FORKABLE_CLUB_IDS;
-
-  if (!forkableClubIds) {
-    return NextResponse.json(
-      { error: 'FORKABLE_CLUB_IDS env var is not set' },
-      { status: 500 }
-    );
+export async function GET(request: Request) {
+  // Protect route
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  // Parse the comma-separated club IDs into an array
-  const clubIds = forkableClubIds
-    .split(',')
-    .map((id) => parseInt(id.trim(), 10))
-    .filter((id) => !isNaN(id));
+  const forkableClubIds = process.env.FORKABLE_CLUB_IDS;
+  if (!forkableClubIds) {
+    return NextResponse.json({ error: 'FORKABLE_CLUB_IDS is missing' }, { status: 500 });
+  }
 
-  // Use our local time-based calculation
-  const fromDate = getFromDate();
+  const clubIds = forkableClubIds.split(',').map(s=>parseInt(s,10)).filter(n=>!isNaN(n));
+  const from = getFromDate();
 
   try {
-    // Get the cookie from the Next.js cache (or fetch a new one if expired)
-    const forkableCookie = await getForkableCookie();
-
-    const response = await fetch(DELIVERY_API_URL, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Cookie: forkableCookie,
-      },
-      body: JSON.stringify({
-        clubIds,
-        from: fromDate,
-      }),
+    const cookie = await getForkableCookie();
+    const res = await fetch(DELIVERY_API_URL, {
+      method:'POST', headers:{ 'Content-Type':'application/json', Cookie:cookie },
+      body: JSON.stringify({ clubIds, from }),
     });
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { error: `Request failed with status ${response.status}` },
-        { status: response.status }
-      );
-    }
-
-    const data: ForkableData = await response.json();
-    const processed = postProcessForkableData(data);
-    return NextResponse.json(processed);
-  } catch (err: unknown) {
-    let message = 'Unknown error';
-    if (err instanceof Error) {
-      message = err.message;
-    }
-    return NextResponse.json({ error: message }, { status: 500 });
+    if (!res.ok) return NextResponse.json({ error:`status ${res.status}` }, { status: res.status });
+    const data: ForkableData = await res.json();
+    return NextResponse.json(postProcessForkableData(data));
+  } catch (e) {
+    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
   }
 }
