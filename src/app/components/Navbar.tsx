@@ -19,7 +19,7 @@ export default function Navbar() {
     <nav className="w-full bg-white border-b p-4 flex justify-between items-center">
       <Link href="/">
         <span className="text-xl font-semibold cursor-pointer">
-          Office Presence Dashboard
+          Cleanlab Office Presence Dashboard
         </span>
       </Link>
       <div>
