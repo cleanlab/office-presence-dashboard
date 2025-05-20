@@ -149,7 +149,7 @@ export default function Home() {
       )}
 
       {!isLoading && data && (
-        <main className="grid grid-cols-1 [@media(min-width:900px)]:grid-cols-5 gap-6">
+        <main className="grid grid-cols-1 [@media(min-width:1200px)]:grid-cols-5 gap-6">
           {displayedDates.map((date, i) => (
             // We'll pass the day index through the DayCard only if needed,
             // but for now we can omit it since we use a single color.
