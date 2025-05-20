@@ -13,7 +13,7 @@ interface ProcessedForkableResponse {
 /**
  * A small helper to format the date string (e.g., "2025-05-19") into
  * short day name (Mon) and a short month/day (May 19) similar to iCal styling.
- * We now append "T12:00:00Z" to avoid off-by-one issues caused by time zones.
+ * We append "T12:00:00Z" to avoid off-by-one issues caused by time zones.
  */
 function formatDateForDisplay(dateStr: string) {
   // Force the date string to interpret as noon UTC
@@ -30,14 +30,15 @@ function formatDateForDisplay(dateStr: string) {
 }
 
 /**
- * A modern Apple Calendar–style palette (slightly pastel).
+ * A mid-tone Apple Calendar–like color palette for day borders.
+ * Halfway between the bright and pastel variants.
  */
-const appleColors = [
-  "#FF9F0A", // Orange
-  "#FFD60A", // Yellow
-  "#32D74B", // Green
-  "#64D2FF", // Light Blue
-  "#BF5AF2", // Purple
+const appleMidTones = [
+  "#FFC68A", // Light orange
+  "#FFF186", // Light yellow
+  "#76F6AA", // Light green
+  "#92EEFF", // Light blue
+  "#DBB1FA", // Light purple
 ];
 
 /**
@@ -46,8 +47,8 @@ const appleColors = [
 function DayCard({ date, people, index }: { date: string; people: Person[]; index: number }) {
   const { dayName, monthDay } = formatDateForDisplay(date);
 
-  // Cycle over the color palette for each day
-  const borderColor = appleColors[index % appleColors.length];
+  // Cycle over the mid-tone palette for each day
+  const borderColor = appleMidTones[index % appleMidTones.length];
 
   return (
     <div
