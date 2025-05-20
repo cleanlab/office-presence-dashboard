@@ -10,13 +10,17 @@ interface ForkablePiece {
     email?: string;
   };
   userFullName?: string;
+  isConfirmed?: boolean; // <-- We added this property
 }
+
 interface ForkableOrder {
   pieces?: ForkablePiece[];
 }
+
 interface ForkableDelivery {
   orders?: ForkableOrder[];
 }
+
 interface ForkableData {
   deliveries?: ForkableDelivery[];
 }
@@ -64,6 +68,8 @@ function getFromDate(): string {
 /**
  * Post-processes the Forkable data to produce an object mapping
  * date -> array of unique { name, email } user entries.
+ *
+ * Only include pieces that have isConfirmed === true.
  */
 function postProcessForkableData(apiData: ForkableData) {
   const dateMap: Record<string, Record<string, { name: string; email: string | null }>> = {};
@@ -71,6 +77,9 @@ function postProcessForkableData(apiData: ForkableData) {
   for (const delivery of apiData.deliveries || []) {
     for (const order of delivery.orders || []) {
       for (const piece of order.pieces || []) {
+        // Only include confirmed orders:
+        if (!piece.isConfirmed) continue;
+
         const date = piece.date;
         if (!date) continue;
 
