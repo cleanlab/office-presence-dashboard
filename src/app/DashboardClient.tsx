@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { sha256 } from "js-sha256";
+import { computeDisplayedWeekDates } from "../utils/dateUtils";
 
 interface Person {
   name: string;
@@ -113,28 +114,8 @@ export default function DashboardClient() {
       });
   }, []);
 
-  // Compute the upcoming business week (Monday–Friday). If today is Saturday or Sunday, start next week
-  const displayedDates = (() => {
-    const today = new Date();
-    const day = today.getDay(); // Sunday = 0, Saturday = 6
-    const monday = new Date(today);
-    if (day === 0) {
-      // Sunday -> next Monday
-      monday.setDate(today.getDate() + 1);
-    } else if (day === 6) {
-      // Saturday -> next Monday
-      monday.setDate(today.getDate() + 2);
-    } else {
-      // Monday to Friday -> this week's Monday
-      monday.setDate(today.getDate() - (day - 1));
-    }
-    // Generate Monday through Friday dates as YYYY-MM-DD
-    return Array.from({ length: 5 }).map((_, i) => {
-      const d = new Date(monday);
-      d.setDate(monday.getDate() + i);
-      return d.toISOString().split("T")[0];
-    });
-  })();
+  // Compute the upcoming business week (Monday–Friday)
+  const displayedDates = computeDisplayedWeekDates(new Date());
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-100 to-gray-50 px-4 py-6 sm:px-6 lg:px-8">
