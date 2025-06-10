@@ -56,3 +56,7 @@ FORKABLE_CLUB_IDS=123,456
 ## Deployment
 
 Deploy on Vercel or any Node.js hosting platform. Ensure your environment variables are set in your deployment settings.
+
+## License
+
+This project is licensed under the MIT License. See [LICENSE.md](LICENSE.md) for details.
