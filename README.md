@@ -1,4 +1,4 @@
-# Cleanlab Office Presence Dashboard
+# Cleanlab Office Presence Dashboard [![CI](https://github.com/cleanlab/office-presence-dashboard/actions/workflows/ci.yml/badge.svg)](https://github.com/cleanlab/office-presence-dashboard/actions/workflows/ci.yml)
 
 ![App Screenshot](assets/app.png)
 
